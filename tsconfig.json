@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./system_a",
+    "strict": true,
+    "esModuleInterop": true
+  },
+  "include": ["system_a/**/*"]
+}

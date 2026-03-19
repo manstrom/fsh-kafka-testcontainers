@@ -1,0 +1,27 @@
+import express, { Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { makeProducer, publishCustomer, CustomerData } from './producer';
+
+const app = express();
+app.use(express.json());
+
+const bootstrapServers = process.env.KAFKA_BOOTSTRAP_SERVERS ?? 'localhost:9092';
+const producer = makeProducer(bootstrapServers);
+
+producer.connect().then(() => {
+  console.log('Producer connected to Kafka');
+});
+
+app.post('/api/v1/customers', async (req: Request, res: Response) => {
+  const { email, phone, name, address } = req.body as CustomerData;
+  const customerId = uuidv4();
+
+  await publishCustomer(producer, customerId, { email, phone, name, address });
+
+  res.json({ id: customerId });
+});
+
+const PORT = process.env.PORT ?? 8000;
+app.listen(PORT, () => console.log('System A running on port ' + PORT));
+
+export default app;
