@@ -140,3 +140,10 @@ vite.config.ts.timestamp-*
 
 node_modules/
 package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
