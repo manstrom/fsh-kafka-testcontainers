@@ -27,5 +27,8 @@ As a integration test for System B, a container simulating System A should be st
 
 Besides a testcontainer for System A (the simulator) there has to be a Kafka container started, which both System A and B connects to.
 
-Once the tests for System B has been exectued, the containers should be stopped.
+Once the tests for System B has been exectued, the containers should be stopped.  
+
+# TESTARE
+Sadaq och Moaz 
 
