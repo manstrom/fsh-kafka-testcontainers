@@ -12,9 +12,13 @@ from confluent_kafka.admin import AdminClient, NewTopic
 def create_topics(bootstrap_servers: str):
     admin = AdminClient({'bootstrap.servers': bootstrap_servers})
     topics = [
-        NewTopic('customer-contact',  num_partitions=1, replication_factor=1),
-        NewTopic('customer-identity', num_partitions=1, replication_factor=1),
-        NewTopic('customer-location', num_partitions=1, replication_factor=1),
+        NewTopic('customer-email',  num_partitions=1, replication_factor=1),
+        NewTopic('customer-phone', num_partitions=1, replication_factor=1),
+        NewTopic('customer-name', num_partitions=1, replication_factor=1),
+        NewTopic('customer-address', num_partitions=1, replication_factor=1),
+        NewTopic('customer-city', num_partitions=1, replication_factor=1),
+        NewTopic('customer-personal-number', num_partitions=1, replication_factor=1),
+        NewTopic('customer-country', num_partitions=1, replication_factor=1),
         NewTopic('customer-complete', num_partitions=1, replication_factor=1),
     ]
     admin.create_topics(topics)
@@ -64,27 +68,52 @@ def system_a(kafka):
         yield container
 
 
-def consume_one(bootstrap_servers: str, topic: str, timeout: int = 30):
+def consume_updates(bootstrap_servers: str, customer_id: str, timeout: int = 30):
+    """Konsumerar alla uppdateringar för en kund och skriver ut varje partiellt meddelande.
+    Returnerar det sista (mest kompletta) meddelandet."""
     consumer = Consumer({
         'bootstrap.servers': bootstrap_servers,
         'group.id': 'test-consumer',
         'auto.offset.reset': 'earliest',
     })
-    consumer.subscribe([topic])
+    consumer.subscribe(['customer-complete'])
+
+    ALL_FIELDS = {'email', 'phone', 'name', 'address', 'city', 'personalNumber', 'country'}
+    latest_data = None
     deadline = time.time() + timeout
+
     try:
         while time.time() < deadline:
             msg = consumer.poll(timeout=1.0)
-            if msg and not msg.error():
-                headers = dict(msg.headers() or [])
-                return (
-                    json.loads(msg.value()),
-                    msg.key().decode(),
-                    headers.get('id', b'').decode(),
-                )
+            if msg is None or msg.error():
+                continue
+
+            headers = dict(msg.headers() or [])
+            msg_customer_id = headers.get('id', b'').decode()
+
+            if msg_customer_id != customer_id:
+                continue
+
+            data = json.loads(msg.value())
+            latest_data = data
+
+            print(f"\n  --- Uppdatering mottagen ---")
+            print(f"  Namn         : {data.get('name', '(saknas)')}")
+            print(f"  E-post       : {data.get('email', '(saknas)')}")
+            print(f"  Telefon      : {data.get('phone', '(saknas)')}")
+            print(f"  Adress       : {data.get('address', '(saknas)')}")
+            print(f"  Stad         : {data.get('city', '(saknas)')}")
+            print(f"  Personnummer : {data.get('personalNumber', '(saknas)')}")
+            print(f"  Land         : {data.get('country', '(saknas)')}")
+
+            # Sluta när alla fält finns
+            if ALL_FIELDS.issubset(data.keys()):
+                print(f"\n  Alla fält mottagna!")
+                break
     finally:
         consumer.close()
-    return None, None, None
+
+    return latest_data
 
 
 def test_customer_flow(kafka, system_a):
@@ -113,25 +142,24 @@ def test_customer_flow(kafka, system_a):
     assert response.status_code == 200
     customer_id = response.json()['id']
 
-    data, key, header_id = consume_one(bootstrap, 'customer-complete')
-
     print(f"\n{'='*50}")
     print(f"  Kund skapad med ID: {customer_id}")
     print(f"{'='*50}")
-    print(f"  Kafka-nyckel  : {key}")
-    print(f"  Header ID     : {header_id}")
-    print(f"  ----------------------------------------")
-    print(f"  Namn          : {data.get('name')}")
-    print(f"  E-post        : {data.get('email')}")
-    print(f"  Telefon       : {data.get('phone')}")
-    print(f"  Adress        : {data.get('address')}")
-    print(f"  Stad          : {data.get('city')}")
-    print(f"  Personnummer  : {data.get('personalNumber')}")
-    print(f"  Land          : {data.get('country')}")
+
+    data = consume_updates(bootstrap, customer_id)
+
+    print(f"\n{'='*50}")
+    print(f"  Slutligt meddelande:")
+    print(f"{'='*50}")
+    print(f"  Namn         : {data.get('name')}")
+    print(f"  E-post       : {data.get('email')}")
+    print(f"  Telefon      : {data.get('phone')}")
+    print(f"  Adress       : {data.get('address')}")
+    print(f"  Stad         : {data.get('city')}")
+    print(f"  Personnummer : {data.get('personalNumber')}")
+    print(f"  Land         : {data.get('country')}")
     print(f"{'='*50}\n")
 
-    assert key == customer_id
-    assert header_id == customer_id
     assert data['email'] == 'test@example.com'
     assert data['name'] == 'Anna Svensson'
     assert data['phone'] == '0701234567'

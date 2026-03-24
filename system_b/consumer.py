@@ -9,11 +9,9 @@ def run(bootstrap_servers: str):
         'auto.offset.reset': 'earliest',
     })
     producer = Producer({'bootstrap.servers': bootstrap_servers})
-    consumer.subscribe(['customer-contact', 'customer-identity', 'customer-location'])
+    consumer.subscribe(['customer-name', 'customer-phone', 'customer-address', 'customer-city', 'customer-personal-number', 'customer-country', 'customer-email'])
 
     store: dict[str, dict] = {}
-
-    REQUIRED_FIELDS = {'email', 'phone', 'name', 'address', 'city', 'personalNumber', 'country'}
 
     try:
         while True:
@@ -33,14 +31,14 @@ def run(bootstrap_servers: str):
                 store[customer_id] = {}
             store[customer_id].update(data)
 
-            if REQUIRED_FIELDS.issubset(store[customer_id]):
-                complete = store.pop(customer_id)
-                producer.produce(
-                    topic='customer-complete',
-                    key=customer_id,
-                    value=json.dumps(complete),
-                    headers=[('id', customer_id)],
-                )
-                producer.flush()
+            # Skicka ut direkt med de fält som finns just nu
+            producer.produce(
+                topic='customer-complete',
+                key=customer_id,
+                value=json.dumps(store[customer_id]),
+                headers=[('id', customer_id)],
+            )
+            producer.flush()
+
     finally:
         consumer.close()
