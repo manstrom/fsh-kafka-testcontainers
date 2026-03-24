@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { makeProducer, publishCustomer, CustomerData } from './producer';
+import { makeProducer, publishCustomer, generateCustomerData, CustomerData } from './producer';
 
 const app = express();
 app.use(express.json());
@@ -13,10 +13,10 @@ producer.connect().then(() => {
 });
 
 app.post('/api/v1/customers', async (req: Request, res: Response) => {
-  const { email, phone, name, address } = req.body as CustomerData;
+  const { email, phone, name, address, city, personalNumber, country } = req.body as CustomerData;
   const customerId = uuidv4();
 
-  await publishCustomer(producer, customerId, { email, phone, name, address });
+  await publishCustomer(producer, customerId, { email, phone, name, address, city, personalNumber, country });
 
   res.json({ id: customerId });
 });

@@ -12,8 +12,9 @@ from confluent_kafka.admin import AdminClient, NewTopic
 def create_topics(bootstrap_servers: str):
     admin = AdminClient({'bootstrap.servers': bootstrap_servers})
     topics = [
-        NewTopic('customer-contact', num_partitions=1, replication_factor=1),
+        NewTopic('customer-contact',  num_partitions=1, replication_factor=1),
         NewTopic('customer-identity', num_partitions=1, replication_factor=1),
+        NewTopic('customer-location', num_partitions=1, replication_factor=1),
         NewTopic('customer-complete', num_partitions=1, replication_factor=1),
     ]
     admin.create_topics(topics)
@@ -31,7 +32,6 @@ def system_a(kafka):
     bootstrap = kafka.get_bootstrap_server()
     create_topics(bootstrap)
 
-    # Hämta Kafkas interna IP så System A kan nå den inifrån Docker-nätverket
     kafka_container = kafka.get_wrapped_container()
     kafka_container.reload()
     networks = kafka_container.attrs['NetworkSettings']['Networks']
@@ -106,11 +106,29 @@ def test_customer_flow(kafka, system_a):
         'phone': '0701234567',
         'name': 'Anna Svensson',
         'address': 'Kungsgatan 1, Stockholm',
+        'city': 'Stockholm',
+        'personalNumber': '900101-1234',
+        'country': 'Sverige',
     })
     assert response.status_code == 200
     customer_id = response.json()['id']
 
     data, key, header_id = consume_one(bootstrap, 'customer-complete')
+
+    print(f"\n{'='*50}")
+    print(f"  Kund skapad med ID: {customer_id}")
+    print(f"{'='*50}")
+    print(f"  Kafka-nyckel  : {key}")
+    print(f"  Header ID     : {header_id}")
+    print(f"  ----------------------------------------")
+    print(f"  Namn          : {data.get('name')}")
+    print(f"  E-post        : {data.get('email')}")
+    print(f"  Telefon       : {data.get('phone')}")
+    print(f"  Adress        : {data.get('address')}")
+    print(f"  Stad          : {data.get('city')}")
+    print(f"  Personnummer  : {data.get('personalNumber')}")
+    print(f"  Land          : {data.get('country')}")
+    print(f"{'='*50}\n")
 
     assert key == customer_id
     assert header_id == customer_id
@@ -118,3 +136,6 @@ def test_customer_flow(kafka, system_a):
     assert data['name'] == 'Anna Svensson'
     assert data['phone'] == '0701234567'
     assert data['address'] == 'Kungsgatan 1, Stockholm'
+    assert data['city'] == 'Stockholm'
+    assert data['personalNumber'] == '900101-1234'
+    assert data['country'] == 'Sverige'
