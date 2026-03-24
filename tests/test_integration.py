@@ -69,8 +69,6 @@ def system_a(kafka):
 
 
 def consume_updates(bootstrap_servers: str, customer_id: str, timeout: int = 30):
-    """Konsumerar alla uppdateringar för en kund och skriver ut varje partiellt meddelande.
-    Returnerar det sista (mest kompletta) meddelandet."""
     consumer = Consumer({
         'bootstrap.servers': bootstrap_servers,
         'group.id': 'test-consumer',
@@ -97,7 +95,8 @@ def consume_updates(bootstrap_servers: str, customer_id: str, timeout: int = 30)
             data = json.loads(msg.value())
             latest_data = data
 
-            print(f"\n  --- Uppdatering mottagen ---")
+            # Skriv ut tillgängliga fält för varje uppdatering
+            print(f"\n  --- Uppdatering mottagen ({len(data)}/7 fält) ---")
             print(f"  Namn         : {data.get('name', '(saknas)')}")
             print(f"  E-post       : {data.get('email', '(saknas)')}")
             print(f"  Telefon      : {data.get('phone', '(saknas)')}")
@@ -106,9 +105,9 @@ def consume_updates(bootstrap_servers: str, customer_id: str, timeout: int = 30)
             print(f"  Personnummer : {data.get('personalNumber', '(saknas)')}")
             print(f"  Land         : {data.get('country', '(saknas)')}")
 
-            # Sluta när alla fält finns
+            # Sluta när alla 7 fält finns i ett och samma meddelande
             if ALL_FIELDS.issubset(data.keys()):
-                print(f"\n  Alla fält mottagna!")
+                print(f"\n  Alla 7 fält mottagna!")
                 break
     finally:
         consumer.close()

@@ -9,7 +9,15 @@ def run(bootstrap_servers: str):
         'auto.offset.reset': 'earliest',
     })
     producer = Producer({'bootstrap.servers': bootstrap_servers})
-    consumer.subscribe(['customer-name', 'customer-phone', 'customer-address', 'customer-city', 'customer-personal-number', 'customer-country', 'customer-email'])
+    consumer.subscribe([
+        'customer-email',
+        'customer-phone',
+        'customer-name',
+        'customer-address',
+        'customer-city',
+        'customer-personal-number',
+        'customer-country',
+    ])
 
     store: dict[str, dict] = {}
 
@@ -31,7 +39,8 @@ def run(bootstrap_servers: str):
                 store[customer_id] = {}
             store[customer_id].update(data)
 
-            # Skicka ut direkt med de fält som finns just nu
+            # Skicka växande meddelande för varje nytt fält
+            print(f"Fält mottaget för {customer_id}: {list(data.keys())[0]} ({len(store[customer_id])}/7 fält)")
             producer.produce(
                 topic='customer-complete',
                 key=customer_id,

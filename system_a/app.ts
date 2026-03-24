@@ -5,8 +5,8 @@ import { makeProducer, publishCustomer, generateCustomerData, CustomerData } fro
 const app = express();
 app.use(express.json());
 
-const bootstrapServers = process.env.KAFKA_BOOTSTRAP_SERVERS ?? 'localhost:9092';
-const producer = makeProducer(bootstrapServers);
+const brokers = process.env.KAFKA_BOOTSTRAP_SERVERS!.split(",");
+const producer = makeProducer(brokers);
 
 producer.connect().then(() => {
   console.log('Producer connected to Kafka');
