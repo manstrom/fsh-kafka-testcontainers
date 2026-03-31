@@ -29,6 +29,71 @@ Besides a testcontainer for System A (the simulator) there has to be a Kafka con
 
 Once the tests for System B has been exectued, the containers should be stopped.  
 
-# TESTARE
-Sadaq och Moaz 
+## How to run
+
+### Prerequisites
+- Docker Desktop must be running
+- active Python virtual environment
+
+### Virtual environment
+
+Create:
+```powershell
+python -m venv .venv
+```
+
+Activate:
+```powershell
+& .venv\Scripts\Activate.ps1
+```
+
+Deactivate:
+```powershell
+deactivate
+```
+### Install dependencies
+
+Python:
+```powershell
+pip install -r requirements.txt
+```
+
+Node:
+```powershell
+npm install
+```
+
+### Build System A Docker image
+```powershell
+docker build -t fsh-system-a .
+```
+
+### Step 1 - Terminal 1
+```powershell
+python run_local.py
+```
+
+You will get a localhost address like `localhost:54809`. Copy it.
+
+### Step 2 - Terminal 2
+```powershell
+pytest
+```
+
+### Step 3 - Offset Explorer
+
+1. Download offset explorer 3.0
+2. Add connection, name it what ever you want
+3. Paste the localhost address from Step 1 into Bootstrap servers,
+4. Leave Zookeeper unchecked
+5. Click Add
+6. Expand Topics to view messages
+
+Every time you restart `run_local.py` the port changes — update Bootstrap servers in Offset Explorer with the new address.
+
+---
+
+## TESTERS
+Sadaq och Moaz
+
 
