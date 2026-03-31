@@ -3,8 +3,6 @@ import time
 import threading
 import requests
 import pytest
-from testcontainers.kafka import KafkaContainer
-from testcontainers.core.container import DockerContainer
 from confluent_kafka import Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 
@@ -12,60 +10,36 @@ from confluent_kafka.admin import AdminClient, NewTopic
 def create_topics(bootstrap_servers: str):
     admin = AdminClient({'bootstrap.servers': bootstrap_servers})
     topics = [
-        NewTopic('customer-email',  num_partitions=1, replication_factor=1),
-        NewTopic('customer-phone', num_partitions=1, replication_factor=1),
-        NewTopic('customer-name', num_partitions=1, replication_factor=1),
-        NewTopic('customer-address', num_partitions=1, replication_factor=1),
-        NewTopic('customer-city', num_partitions=1, replication_factor=1),
+        NewTopic('customer-email',           num_partitions=1, replication_factor=1),
+        NewTopic('customer-phone',           num_partitions=1, replication_factor=1),
+        NewTopic('customer-name',            num_partitions=1, replication_factor=1),
+        NewTopic('customer-address',         num_partitions=1, replication_factor=1),
+        NewTopic('customer-city',            num_partitions=1, replication_factor=1),
         NewTopic('customer-personal-number', num_partitions=1, replication_factor=1),
-        NewTopic('customer-country', num_partitions=1, replication_factor=1),
-        NewTopic('customer-complete', num_partitions=1, replication_factor=1),
+        NewTopic('customer-country',         num_partitions=1, replication_factor=1),
+        NewTopic('customer-complete',        num_partitions=1, replication_factor=1),
     ]
     admin.create_topics(topics)
     time.sleep(2)
 
 
+# ✅ Använder run_local.py istället för att starta egna containers
 @pytest.fixture(scope='module')
-def kafka():
-    with KafkaContainer() as kafka:
-        yield kafka
+def kafka(kafka_env):
+    class FakeKafka:
+        def get_bootstrap_server(self):
+            return kafka_env['KAFKA_BOOTSTRAP']
+    return FakeKafka()
 
 
 @pytest.fixture(scope='module')
-def system_a(kafka):
-    bootstrap = kafka.get_bootstrap_server()
-    create_topics(bootstrap)
-
-    kafka_container = kafka.get_wrapped_container()
-    kafka_container.reload()
-    networks = kafka_container.attrs['NetworkSettings']['Networks']
-    network_name = list(networks.keys())[0]
-    kafka_internal_ip = networks[network_name]['IPAddress']
-    internal_bootstrap = f"{kafka_internal_ip}:9092"
-
-    print(f"\nKafka extern: {bootstrap}")
-    print(f"Kafka intern: {internal_bootstrap}")
-    print(f"Nätverk: {network_name}")
-
-    container = (
-        DockerContainer('fsh-system-a')
-        .with_env('KAFKA_BOOTSTRAP_SERVERS', internal_bootstrap)
-        .with_exposed_ports(8000)
-        .with_kwargs(network=network_name)
-    )
-    with container:
-        host = container.get_container_host_ip()
-        port = container.get_exposed_port(8000)
-        print(f"System A på: {host}:{port}")
-        deadline = time.time() + 30
-        while time.time() < deadline:
-            try:
-                requests.get(f'http://{host}:{port}/docs', timeout=2)
-                print('System A är redo!')
-                break
-            except Exception:
-                time.sleep(1)
-        yield container
+def system_a(kafka_env):
+    class FakeSystemA:
+        def get_container_host_ip(self):
+            return kafka_env['SYSTEM_A_HOST']
+        def get_exposed_port(self, port):
+            return kafka_env['SYSTEM_A_PORT']
+    return FakeSystemA()
 
 
 def consume_updates(bootstrap_servers: str, customer_id: str, timeout: int = 30):
@@ -95,7 +69,6 @@ def consume_updates(bootstrap_servers: str, customer_id: str, timeout: int = 30)
             data = json.loads(msg.value())
             latest_data = data
 
-            # Skriv ut tillgängliga fält för varje uppdatering
             print(f"\n  --- Uppdatering mottagen ({len(data)}/7 fält) ---")
             print(f"  Namn         : {data.get('name', '(saknas)')}")
             print(f"  E-post       : {data.get('email', '(saknas)')}")
@@ -105,7 +78,6 @@ def consume_updates(bootstrap_servers: str, customer_id: str, timeout: int = 30)
             print(f"  Personnummer : {data.get('personalNumber', '(saknas)')}")
             print(f"  Land         : {data.get('country', '(saknas)')}")
 
-            # Sluta när alla 7 fält finns i ett och samma meddelande
             if ALL_FIELDS.issubset(data.keys()):
                 print(f"\n  Alla 7 fält mottagna!")
                 break

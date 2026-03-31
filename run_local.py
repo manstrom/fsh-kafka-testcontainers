@@ -1,29 +1,25 @@
-"""
-Kör detta för att hålla Kafka + System A uppe så du kan kolla i Offset Explorer.
-Avsluta med Ctrl+C när du är klar.
-"""
 import time
-import threading
-from testcontainers.kafka import KafkaContainer
-from testcontainers.core.container import DockerContainer
-from confluent_kafka.admin import AdminClient, NewTopic
 import sys
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from testcontainers.kafka import KafkaContainer
+from testcontainers.core.container import DockerContainer
+from confluent_kafka.admin import AdminClient, NewTopic
+
 
 def create_topics(bootstrap_servers: str):
     admin = AdminClient({'bootstrap.servers': bootstrap_servers})
     topics = [
-        NewTopic('customer-email',        num_partitions=1, replication_factor=1),
-        NewTopic('customer-phone',        num_partitions=1, replication_factor=1),
-        NewTopic('customer-name',         num_partitions=1, replication_factor=1),
-        NewTopic('customer-address',      num_partitions=1, replication_factor=1),
-        NewTopic('customer-city',         num_partitions=1, replication_factor=1),
+        NewTopic('customer-email',           num_partitions=1, replication_factor=1),
+        NewTopic('customer-phone',           num_partitions=1, replication_factor=1),
+        NewTopic('customer-name',            num_partitions=1, replication_factor=1),
+        NewTopic('customer-address',         num_partitions=1, replication_factor=1),
+        NewTopic('customer-city',            num_partitions=1, replication_factor=1),
         NewTopic('customer-personal-number', num_partitions=1, replication_factor=1),
-        NewTopic('customer-country',      num_partitions=1, replication_factor=1),
-        NewTopic('customer-complete',     num_partitions=1, replication_factor=1),
+        NewTopic('customer-country',         num_partitions=1, replication_factor=1),
+        NewTopic('customer-complete',        num_partitions=1, replication_factor=1),
     ]
     admin.create_topics(topics)
     time.sleep(2)
@@ -37,7 +33,6 @@ if __name__ == '__main__':
         create_topics(bootstrap)
         print("✅ Topics skapade!")
 
-        # Hitta internt nätverk för System A
         kafka_container = kafka.get_wrapped_container()
         kafka_container.reload()
         networks = kafka_container.attrs['NetworkSettings']['Networks']
@@ -55,11 +50,17 @@ if __name__ == '__main__':
         with container:
             host = container.get_container_host_ip()
             port = container.get_exposed_port(8000)
+
+            # Skriv bootstrap + system_a port till fil så pytest kan läsa den
+            with open('.kafka_env', 'w') as f:
+                f.write(f"KAFKA_BOOTSTRAP={bootstrap}\n")
+                f.write(f"SYSTEM_A_HOST={host}\n")
+                f.write(f"SYSTEM_A_PORT={port}\n")
+
             print(f"✅ System A kör på: http://{host}:{port}")
             print()
             print("=" * 50)
             print(f"  Koppla Offset Explorer till: {bootstrap}")
-            print(f"  Bootstrap servers: {bootstrap}")
             print("=" * 50)
             print()
             print("Tryck Ctrl+C för att stänga av...")
@@ -67,4 +68,5 @@ if __name__ == '__main__':
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
+                os.remove('.kafka_env')
                 print("\nStänger av...")
